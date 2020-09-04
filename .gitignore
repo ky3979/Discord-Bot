@@ -1,0 +1,8 @@
+__pycache__
+.vscode
+services/__pycache__
+services/cogs/__pycache__
+services/extensions/__pycache__
+services/schemas/__pycache__
+.env
+dusty-bot-kn.json
