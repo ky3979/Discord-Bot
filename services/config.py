@@ -23,12 +23,6 @@ color = {
     'BROWN': 0x593018,
 }
 version_updates = "```\n\
-0.0.32v (Latest)\n\
-\t- Text fixes\n\
-0.0.31v:\n\
-\t- Fixed timezone issues for polls\n\
-\t- Add poll force end command\n\
-\t- Config fixes\n\
-0.0.3v:\n\
-\t- Bot sends weekend videos (Friday @ 6PM, Saturday @ 10AM, Sunday @ 12PM\n\
+0.0.33v:\n\
+\t- Bug fixes and formatting fixes \
 ```"

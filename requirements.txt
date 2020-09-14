@@ -6,3 +6,4 @@ marshmallow==3.7.0
 marshmallow-dataclass==7.6.0
 APScheduler==3.6.3
 pytz==2020.1
+aiohttp==3.6.2

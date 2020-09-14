@@ -1,6 +1,7 @@
 """Discord bot class"""
 import os
 import discord
+import aiohttp
 from services.config import config, version_updates
 from discord.errors import Forbidden
 from discord.ext.commands import Bot, CommandNotFound, BadArgument, MissingRequiredArgument
@@ -25,11 +26,12 @@ class DustyBot(Bot):
             owner_id=int(config['DEV_ID'])
         )
         self.token = config['BOT_TOKEN']
+        self.scheduler = AsyncIOScheduler()
+        self.session = aiohttp.ClientSession(loop=self.loop)
         self.guild = None
         self.general_channel = None
         self.bot_channel = None
         self.ready = False
-        self.scheduler = AsyncIOScheduler()
         self.VERSION = None
 
     def run(self, version):
@@ -55,7 +57,7 @@ class DustyBot(Bot):
             self.scheduler.start()
             self.loadCogs()
             print(f'\nLogged in as ({self.user.name} : {self.user.id})\n')
-            # await self.general_channel.send(f'Dusty Bot **{self.VERSION}** has been deloyed!\n{version_updates}')
+            await self.general_channel.send(f'Dusty Bot **{self.VERSION}** has been deloyed!\n{version_updates}')
 
     async def on_member_join(self, member):
         doc_ref = firebase_handler.query_firestore(u'members', str(member.id))
@@ -103,5 +105,6 @@ class DustyBot(Bot):
     async def close(self):
         await super().close()
         self.scheduler.shutdown()
+        self.session.close()
         print(f'\nLogged off as ({self.user.name} : {self.user.id})\n')
         

@@ -7,6 +7,7 @@ from services.config import color, config
 from apscheduler.triggers.cron import CronTrigger
 from discord.ext.commands import Cog, command, has_any_role
 from datetime import datetime, timedelta
+from pytz import timezone
 from services.extensions import firebase_handler
 from services.schemas.guy_of_week_data import (
     PreviousGuy,
@@ -15,7 +16,6 @@ from services.schemas.guy_of_week_data import (
 )
 
 NUMBERS = ["0⃣", "1️⃣", "2⃣", "3⃣", "4⃣", "5⃣", "6⃣", "7⃣", "8⃣", "9⃣", "🔟"]
-DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 class GuyOfWeek(Cog):
     """Guy of the week poll system"""
@@ -101,7 +101,7 @@ class GuyOfWeek(Cog):
         """Send weekly guy of week polls"""
 
         # Get guy of week data or create new data
-        today = datetime.now()
+        today = datetime.now(timezone('US/Eastern'))
         self.data_id = f'{today.year}{today.month:02}{today.day:02}'
 
         cool_guy_ref = self.generate_data('cool_guy')
@@ -289,7 +289,7 @@ class GuyOfWeek(Cog):
 
     @command(aliases=['end'])
     @has_any_role('Developer', 'Dusty Boy')
-    async def force_end(self, ctx):
+    async def end_poll(self, ctx):
         """Force end the poll"""
         cool_guy_ref = firebase_handler.query_firestore(u'cool_guy', self.data_id)
         cool_guy_data = cool_guy_ref.get().to_dict()
@@ -299,9 +299,16 @@ class GuyOfWeek(Cog):
         self.complete_poll_job.pause()
         self.complete_poll_job.remove()
 
+    @command()
+    @has_any_role('Developer', 'Dusty Boy')
+    async def next_poll(self, ctx):
+        """Show the next poll run time"""
+        date = self.poll_job.next_run_time
+        await ctx.send(f"The next poll will be send on {date.strftime('%A, %b %d')} at {date.strftime('%I:%M %p')}")
+
     @command(aliases=['set'])
     @has_any_role('Developer', 'Dusty Boy')
-    async def settings(self, ctx, arg: str, value: int):
+    async def set_poll_time(self, ctx, arg: str, value: int):
         """
         Change when polls occur\n
         Valid args: day, duration, hour, minute\n
@@ -346,7 +353,7 @@ class GuyOfWeek(Cog):
             )
         )
         date = self.poll_job.next_run_time
-        await ctx.send(f"Guy of the week polls will now be sent every {DAYS[date.weekday()]} at {date.strftime('%I:%M %p')}")
+        await ctx.send(f"Guy of the week polls will now be sent every {date.strftime('%A')} at {date.strftime('%I:%M %p')}")
 
     @Cog.listener()
     async def on_raw_reaction_add(self, payload):
