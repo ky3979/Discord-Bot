@@ -260,7 +260,7 @@ class GuyOfWeek(Cog):
             try:
                 await old_cool_guy.remove_roles(cool_guy_role)
             except Exception as e:
-                await message.channel.send(f'**Error:** {e}')
+                await cool_guy_message.channel.send(f'**Error:** {e}')
 
         uncool_guy_role = find(
             lambda r: r.name == str(config['UNCOOL_ROLE']),
@@ -271,18 +271,18 @@ class GuyOfWeek(Cog):
             try:
                 await old_uncool_guy.remove_roles(uncool_guy_role)
             except Exception as e:
-                await message.channel.send(f'**Error:** {e}')
+                await cool_guy_message.channel.send(f'**Error:** {e}')
 
         # Give winner 'cool guy of the week' role
         try:
             await new_cool_guy.add_roles(cool_guy_role)
         except Exception as e:
-            await message.channel.send(f'**Error:** {e}')
+            await cool_guy_message.channel.send(f'**Error:** {e}')
         
         try:
             await new_uncool_guy.add_roles(uncool_guy_role)
         except Exception as e:
-            await message.channel.send(f'**Error:** {e}')
+            await cool_guy_message.channel.send(f'**Error:** {e}')
         
         # Unpin and delete message
         try:

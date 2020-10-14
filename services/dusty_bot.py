@@ -57,7 +57,7 @@ class DustyBot(Bot):
             self.scheduler.start()
             self.loadCogs()
             print(f'\nLogged in as ({self.user.name} : {self.user.id})\n')
-            await self.general_channel.send(f'Dusty Bot **{self.VERSION}** has been deloyed!\n{version_updates}')
+            # await self.general_channel.send(f'Dusty Bot **{self.VERSION}** has been deloyed!\n{version_updates}')
 
     async def on_member_join(self, member):
         doc_ref = firebase_handler.query_firestore(u'members', str(member.id))
