@@ -114,7 +114,19 @@ class GuyOfWeek(Cog):
         settings_ref = firebase_handler.query_firestore(u'poll_settings', 'guy_of_week')
         settings = settings_ref.get().to_dict()
         deadline = today + timedelta(seconds=int(settings['duration']))
-        
+
+        nominees = ""
+        default_emotes = get_default_emote_queue()
+        for nominee in cool_guy_data['nominees']:
+            emote_ref = firebase_handler.query_firestore(u'member_emotes', str(nominee['id']))
+            member_emote = emote_ref.get().to_dict()
+            if member_emote is None:
+                # Use defaults
+                emote = default_emotes.pop(0)
+            else:
+                emote = member_emote['emote']
+            nominees += f"{emote} {nominee['name']}\n"
+
         cool_guy_embed = self.generate_embed(
             title='Cool Guy of the Week Poll',
             description=f'{self.bot.guild.default_role}',
@@ -122,7 +134,7 @@ class GuyOfWeek(Cog):
             fields=[
                 ('Previous Cool Guy:', cool_guy_data['previous_guy']['name'], True),
                 ('Deadline:', "Today @ " + deadline.strftime('%I:%M %p'), True),
-                ('\n**Nominees:**', '\n'.join([f"{NUMBERS[cool_guy_data['nominees'].index(nominee)]} {nominee['name']}" for nominee in cool_guy_data['nominees']]), False)
+                ('\n**Nominees:**', nominees, False)
             ],
             footer='React to cast a vote!'
         )
@@ -133,7 +145,7 @@ class GuyOfWeek(Cog):
             fields=[
                 ('Previous Uncool Guy:', uncool_guy_data['previous_guy']['name'], True),
                 ('Deadline:', "Today @ " + deadline.strftime('%I:%M %p'), True),
-                ('\n**Nominees:**', '\n'.join([f"{NUMBERS[uncool_guy_data['nominees'].index(nominee)]} {nominee['name']}" for nominee in uncool_guy_data['nominees']]), False)
+                ('\n**Nominees:**', nominees, False)
             ],
             footer='React to cast a vote!'
         )
