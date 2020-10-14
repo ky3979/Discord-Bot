@@ -32,11 +32,11 @@ class MemberEmote(Cog):
         if member_emote is None:
             member_emote = MemberEmoteSchema(member.display_name, emote)
             doc_ref.set(MemberEmoteSchema.Schema().dump(member_emote))
-            await ctx.send(f'New profile created for **{member_name}** with emote "{emote}"')
+            await ctx.send(f'New profile created for **{str(member)}** with emote "{emote}"')
         else:
             member_emote['emote'] = emote
             doc_ref.update(member_emote)
-            await ctx.send(f'Update profile for **{member.display_name}** with emote "{emote}"')
+            await ctx.send(f'Update profile for **{str(member)}** with emote "{emote}"')
 
 def setup(bot):
     """Add this cog"""
