@@ -9,6 +9,7 @@ from discord.ext.commands import Cog, command, has_any_role
 from datetime import datetime, timedelta
 from pytz import timezone
 from services.extensions import firebase_handler
+from services.cogs.member_emote import get_default_emote_queue
 from services.schemas.guy_of_week_data import (
     PreviousGuy,
     Nominee,
@@ -148,9 +149,17 @@ class GuyOfWeek(Cog):
         uncool_guy_ref.update(uncool_guy_data)
 
         # Add bot reactions and pin message
-        for emoji in NUMBERS[:len(cool_guy_data['nominees'])]:
-            await cool_guy_message.add_reaction(emoji)
-            await uncool_guy_message.add_reaction(emoji)
+        default_emotes = get_default_emote_queue()
+        for nominee in cool_guy_data['nominees']:
+            emote_ref = firebase_handler.query_firestore(u'member_emotes', str(nominee['id']))
+            member_emote = emote_ref.get().to_dict()
+            if member_emote is None:
+                # Use defaults
+                emote = default_emotes.pop(0)
+            else:
+                emote = member_emote['emote']
+            await cool_guy_message.add_reaction(emote)
+            await uncool_guy_message.add_reaction(emote)
         try:
             await cool_guy_message.pin()
             await uncool_guy_message.pin()

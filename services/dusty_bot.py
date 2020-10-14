@@ -104,7 +104,7 @@ class DustyBot(Bot):
 
     async def close(self):
         await super().close()
+        await self.session.close()
         self.scheduler.shutdown()
-        self.session.close()
         print(f'\nLogged off as ({self.user.name} : {self.user.id})\n')
         

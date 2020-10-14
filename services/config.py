@@ -23,6 +23,8 @@ color = {
     'BROWN': 0x593018,
 }
 version_updates = "```\n\
+0.0.34v (Latest):\n\
+\t- Added custom emotes for polls \
 0.0.33v:\n\
 \t- Bug fixes and formatting fixes \
 ```"
