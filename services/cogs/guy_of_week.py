@@ -376,32 +376,6 @@ class GuyOfWeek(Cog):
         date = self.poll_job.next_run_time
         await ctx.send(f"Guy of the week polls will now be sent every {date.strftime('%A')} at {date.strftime('%I:%M %p')}")
 
-    @Cog.listener()
-    async def on_raw_reaction_add(self, payload):
-        """Handle multiple reactions from same user"""
-        message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
-        if not message.embeds or payload.member.bot:
-            return
-
-        if message.embeds[0].title == 'Cool Guy of the Week Poll':
-            cool_guy_ref = firebase_handler.query_firestore(u'cool_guy', self.data_id)
-            cool_guy_data = cool_guy_ref.get().to_dict()
-            if message.id != cool_guy_data['message_id']:
-                return
-            for reaction in message.reactions:
-                if (payload.member in await reaction.users().flatten()
-                    and reaction.emoji != payload.emoji.name):
-                    await message.remove_reaction(reaction.emoji, payload.member)
-        elif message.embeds[0].title == 'Uncool Guy of the Week Poll':
-            uncool_guy_ref = firebase_handler.query_firestore(u'uncool_guy', self.data_id)
-            uncool_guy_data = uncool_guy_ref.get().to_dict()
-            if message.id != uncool_guy_data['message_id']:
-                return
-            for reaction in message.reactions:
-                if (payload.member in await reaction.users().flatten()
-                    and reaction.emoji != payload.emoji.name):
-                    await message.remove_reaction(reaction.emoji, payload.member)
-
 def setup(bot):
     """Add this cog"""
     bot.add_cog(GuyOfWeek(bot))

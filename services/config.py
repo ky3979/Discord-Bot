@@ -21,10 +21,12 @@ config = {
 color = {
     'PURPLE': 0xd14fcd,
     'BROWN': 0x593018,
+    'YELLOW': 0xe7c90b,
 }
 version_updates = "```\n\
-0.0.34.1v (Latest):\n\
-\t- Display name bug fix on set_emote command \n\
+0.0.4v (Latest):\n\
+\t- Added a simple poll command. Use '!help poll' to learn more! \n\
 0.0.34v:\n\
-\t- Added custom emotes for polls \
+\t- Display name bug fix on set_emote command \n\
+\t- Added custom emotes for polls \n\
 ```"
