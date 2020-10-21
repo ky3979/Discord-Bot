@@ -1,7 +1,7 @@
 """Member custom emote cog"""
 import discord
 from discord.utils import find
-from discord.ext.commands import command, Cog
+from discord.ext.commands import command, Cog, has_any_role
 from services.extensions import firebase_handler
 from services.schemas.member_emote import (
     MemberEmoteSchema
@@ -12,13 +12,23 @@ def get_default_emote_queue():
     return ["0⃣", "1️⃣", "2⃣", "3⃣", "4⃣", "5⃣", "6⃣", "7⃣", "8⃣", "9⃣", "🔟"]
 
 class MemberEmote(Cog):
-    """Changing a member display emote"""
+    """Member display emote in cool/uncool polls"""
     def __init__(self, bot):
         self.bot = bot
 
     @command(aliases=['emote'])
+    @has_any_role('Developer', 'Daddies')
     async def set_emote(self, ctx, emote, member_name=None):
-        """Set a member's emote"""
+        """
+        Set a member's emote
+
+        Parameters:
+        -----------
+        emote - emoji, the emote to set to
+        member_name (optional) - string, specified member to change. Defaulted to yourself
+        """
+
+        # Get member object
         if member_name is None:
             member = ctx.author
         else:
@@ -27,6 +37,7 @@ class MemberEmote(Cog):
                 self.bot.guild.members
             )
         
+        # Update member's emote in the firestore
         doc_ref = firebase_handler.query_firestore(u'member_emotes', str(member.id))
         member_emote = doc_ref.get().to_dict()
         if member_emote is None:

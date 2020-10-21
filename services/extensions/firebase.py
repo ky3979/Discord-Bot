@@ -10,9 +10,9 @@ class FirebaseHandler():
     def __init__(self):
         """Constuctor"""
         try:
-            cred = credentials.Certificate(config['FIREBASE_CREDENTIALS'])
+            cred = credentials.Certificate(config.FIREBASE_CREDENTIALS)
         except Exception:
-            cred = credentials.Certificate(ast.literal_eval(config['FIREBASE_CREDENTIALS']))
+            cred = credentials.Certificate(ast.literal_eval(config.FIREBASE_CREDENTIALS))
         firebase_admin.initialize_app(cred)
         self.db = firestore.client()
 

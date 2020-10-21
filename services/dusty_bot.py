@@ -2,7 +2,7 @@
 import os
 import discord
 import aiohttp
-from services.config import config, version_updates
+from services.config import config
 from discord.errors import Forbidden
 from discord.ext.commands import Bot, CommandNotFound, BadArgument, MissingRequiredArgument
 from apscheduler.triggers.cron import CronTrigger
@@ -12,7 +12,7 @@ from services.schemas.member import (
     Member
 )
 
-PREFIX='!'
+PREFIX = '!'
 IGNORE_EXCEPTIONS = (CommandNotFound, BadArgument)
 
 class DustyBot(Bot):
@@ -23,9 +23,9 @@ class DustyBot(Bot):
         super().__init__(
             command_prefix=PREFIX,
             description='Official Dusty server bot',
-            owner_id=int(config['DEV_ID'])
+            owner_id=config.DEV_ID
         )
-        self.token = config['BOT_TOKEN']
+        self.token = config.BOT_TOKEN
         self.scheduler = AsyncIOScheduler()
         self.session = aiohttp.ClientSession(loop=self.loop)
         self.guild = None
@@ -33,10 +33,12 @@ class DustyBot(Bot):
         self.bot_channel = None
         self.ready = False
         self.VERSION = None
+        self.VERSION_NOTES = None
 
-    def run(self, version):
+    def run(self, version, notes):
         """Start the bot"""
         self.VERSION = version
+        self.VERSION_NOTES = notes
         super().run(self.token, reconnect=True)
 
     def loadCogs(self):
@@ -51,16 +53,13 @@ class DustyBot(Bot):
     async def on_ready(self):
         if not self.ready:
             self.ready = True
-            self.guild = self.get_guild(int(config['GUILD_ID']))
-            self.general_channel = self.get_channel(int(config['GENERAL_CHANNEL_ID']))
-            self.bot_channel = self.get_channel(int(config['BOT_CHANNEL_ID']))
+            self.guild = self.get_guild(int(config.GUILD_ID))
+            self.general_channel = self.get_channel(int(config.GENERAL_CHANNEL_ID))
+            self.bot_channel = self.get_channel(int(config.BOT_CHANNEL_ID))
             self.scheduler.start()
             self.loadCogs()
             print(f'\nLogged in as ({self.user.name} : {self.user.id})\n')
-            await self.general_channel.send(f'Dusty Bot **{self.VERSION}** has been deloyed!\n{version_updates}')
-
-    async def on_disconnect(self):
-        await self.general_channel.send(f'\nLogged off as ({self.user.name}')
+            await self.general_channel.send(f'Dusty Bot **{self.VERSION}** has been deloyed!\n{self.VERSION_NOTES}')
 
     async def on_member_join(self, member):
         doc_ref = firebase_handler.query_firestore(u'members', str(member.id))
@@ -110,4 +109,5 @@ class DustyBot(Bot):
         await self.session.close()
         self.scheduler.shutdown()
         print(f'\nLogged off as ({self.user.name} : {self.user.id})\n')
+        await self.general_channel.send(f'\nLogged off as ({self.user.name})')
         

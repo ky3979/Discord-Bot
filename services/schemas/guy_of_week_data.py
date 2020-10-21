@@ -15,7 +15,6 @@ class Nominee:
     """Guy of the week nominee"""
     name: str = field(default='None')
     id: int = field(default=None)
-    votes: int = field(default=1)
 
 @dataclass
 class PollData:

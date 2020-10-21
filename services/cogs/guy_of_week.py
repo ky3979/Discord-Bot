@@ -5,7 +5,7 @@ from discord import Embed
 from discord.utils import get, find
 from services.config import color, config
 from apscheduler.triggers.cron import CronTrigger
-from discord.ext.commands import Cog, command, has_any_role
+from discord.ext.commands import Cog, command, has_any_role, has_role
 from datetime import datetime, timedelta
 from pytz import timezone
 from services.extensions import firebase_handler
@@ -16,23 +16,18 @@ from services.schemas.guy_of_week_data import (
     PollData
 )
 
-NUMBERS = ["0⃣", "1️⃣", "2⃣", "3⃣", "4⃣", "5⃣", "6⃣", "7⃣", "8⃣", "9⃣", "🔟"]
-
 class GuyOfWeek(Cog):
     """Guy of the week poll system"""
     
     def __init__(self, bot):
         self.bot = bot
-        self.is_cool_poll_done = False
-        self.is_uncool_poll_done = False
         self.data_id = None
-        self.update_job = None
         self.complete_poll_job = None
 
         settings_ref = firebase_handler.query_firestore(u'poll_settings', 'guy_of_week')
         settings = settings_ref.get().to_dict()
         self.poll_job = self.bot.scheduler.add_job(
-            self.create_guy_of_week_poll,
+            self.send_guy_of_week_polls,
             CronTrigger(
                 day_of_week=settings['day'],
                 hour=settings['hour'],
@@ -42,15 +37,20 @@ class GuyOfWeek(Cog):
             )
         )
         next_run_time = self.poll_job.next_run_time.strftime('%Y-%m-%d %I:%M %p')
-        logging.info(f'"GuyOfWeek.create_guy_of_week_poll" next run time: {next_run_time}')
+        logging.info(f'"GuyOfWeek.send_guy_of_week_polls" next run time: {next_run_time}')
+    
+    def get_poll_deadline(self, today):
+        """Return the deadline for the polls"""
+        settings_ref = firebase_handler.query_firestore(u'poll_settings', 'guy_of_week')
+        settings = settings_ref.get().to_dict()
+        return today + timedelta(seconds=int(settings['duration']))
 
     def generate_data(self, data_type):
-        """Generate new poll data and store it into firebase"""
+        """Generate, store, and return poll data"""
         if data_type == 'cool_guy':
-            role_name = str(config['COOL_ROLE'])
+            role_name = str(config.COOL_ROLE)
         else:
-            role_name = str(config['UNCOOL_ROLE'])
-
+            role_name = str(config.UNCOOL_ROLE)
         data_ref = firebase_handler.query_firestore(data_type, self.data_id)
 
         # Get previous guy
@@ -84,7 +84,7 @@ class GuyOfWeek(Cog):
         return data_ref
 
     def generate_embed(self, title, description, color, fields, footer=None):
-        """Generate poll embed"""
+        """Generate and return poll embed"""
         embed = Embed(
             title=title,
             description=description,
@@ -97,93 +97,154 @@ class GuyOfWeek(Cog):
         if footer is not None:
             embed.set_footer(text=footer)
         return embed
-    
-    async def create_guy_of_week_poll(self):
-        """Send weekly guy of week polls"""
 
-        # Get guy of week data or create new data
-        today = datetime.now(timezone('US/Eastern'))
-        self.data_id = f'{today.year}{today.month:02}{today.day:02}'
-
-        cool_guy_ref = self.generate_data('cool_guy')
-        cool_guy_data = cool_guy_ref.get().to_dict()
-        uncool_guy_ref = self.generate_data('uncool_guy')
-        uncool_guy_data = uncool_guy_ref.get().to_dict()
-
-        # Construct and send polls
-        settings_ref = firebase_handler.query_firestore(u'poll_settings', 'guy_of_week')
-        settings = settings_ref.get().to_dict()
-        deadline = today + timedelta(seconds=int(settings['duration']))
-
+    def generate_nominees_text(self, poll_data):
+        """Generate and return the nominees value"""
         nominees = ""
         default_emotes = get_default_emote_queue()
-        for nominee in cool_guy_data['nominees']:
+        for nominee in poll_data['nominees']:
             emote_ref = firebase_handler.query_firestore(u'member_emotes', str(nominee['id']))
             member_emote = emote_ref.get().to_dict()
             if member_emote is None:
                 # Use defaults
                 emote = default_emotes.pop(0)
             else:
+                # Use custom
                 emote = member_emote['emote']
             nominees += f"{emote} {nominee['name']}\n"
+        return nominees
 
-        cool_guy_embed = self.generate_embed(
-            title='Cool Guy of the Week Poll',
+    async def generate_guy_poll(self, title, color, fields, doc_ref, data):
+        """Generate, send, and return the poll message"""
+
+        # Create poll embed
+        embed = self.generate_embed(
+            title=title,
             description=f'{self.bot.guild.default_role}',
-            color=color['PURPLE'],
+            color=color,
+            fields=fields,
+            footer='React to cast a vote!'
+        )
+        message = await self.bot.general_channel.send(embed=embed)
+        data['message_id'] = message.id
+        data['channel_id'] = message.channel.id
+        doc_ref.update(data)
+
+        # Add reaction options and pin poll
+        default_emotes = get_default_emote_queue()
+        for nominee in data['nominees']:
+            emote_ref = firebase_handler.query_firestore(u'member_emotes', str(nominee['id']))
+            member_emote = emote_ref.get().to_dict()
+            if member_emote is None:
+                # Use defaults
+                emote = default_emotes.pop(0)
+            else:
+                # Use custom
+                emote = member_emote['emote']
+            await message.add_reaction(emote)
+        try:
+            await message.pin()
+        except:
+            pass
+        return message
+
+    async def get_results(self, cool_data, uncool_data):
+        """Return the person with the most votes from each poll"""
+        cool_guy_message = await self.bot.get_channel(cool_data['channel_id']).fetch_message(cool_data['message_id'])
+        cool_guy_results = max(cool_guy_message.reactions, key=lambda r: r.count)
+        cool_guy_idx = cool_guy_message.reactions.index(cool_guy_results)
+        new_cool_guy = self.bot.guild.get_member(cool_data['nominees'][cool_guy_idx]['id'])
+
+        uncool_guy_message = await self.bot.get_channel(uncool_data['channel_id']).fetch_message(uncool_data['message_id'])
+        uncool_guy_results = max(uncool_guy_message.reactions, key=lambda r: r.count)
+        uncool_guy_idx = uncool_guy_message.reactions.index(uncool_guy_results)
+        new_uncool_guy = self.bot.guild.get_member(uncool_data['nominees'][uncool_guy_idx]['id'])
+
+        return {
+            'cool': {
+                'user': new_cool_guy,
+                'votes': cool_guy_results.count,
+                'message': cool_guy_message
+            },
+            'uncool': {
+                'user': new_uncool_guy,
+                'votes': uncool_guy_results.count,
+                'message': uncool_guy_message
+            }
+        }
+    
+    async def set_new_roles(self, pre_cool_id, pre_uncool_id, results):
+        """Give winner their roles and remove previous winners of roles"""
+        cool_guy_role = get(self.bot.guild.roles, name=config.COOL_ROLE)
+        if pre_cool_id is not None:
+            old_cool_guy = self.bot.guild.get_member(pre_cool_id)
+            try:
+                await old_cool_guy.remove_roles(cool_guy_role)
+            except Exception as e:
+                await self.bot.general_channel.send(f'**Error:** {e}')
+
+        uncool_guy_role = get(self.bot.guild.roles, name=config.UNCOOL_ROLE)
+        if pre_uncool_id is not None:
+            old_uncool_guy = self.bot.guild.get_member(pre_uncool_id)
+            try:
+                await old_uncool_guy.remove_roles(uncool_guy_role)
+            except Exception as e:
+                await self.bot.general_channel.send(f'**Error:** {e}')
+
+        # Give winner 'cool guy of the week' role
+        try:
+            await results['cool']['user'].add_roles(cool_guy_role)
+        except Exception as e:
+            await self.bot.general_channel.send(f'**Error:** {e}')
+        
+        try:
+            await results['uncool']['user'].add_roles(uncool_guy_role)
+        except Exception as e:
+            await self.bot.general_channel.send(f'**Error:** {e}')
+
+    async def send_guy_of_week_polls(self):
+        """Send weekly guy of week polls"""
+
+        # Generate this week's data
+        today = datetime.now(timezone('US/Eastern'))
+        self.data_id = f'{today.year}{today.month:02}{today.day:02}'
+
+        cool_guy_ref = self.generate_data('cool_guy')
+        uncool_guy_ref = self.generate_data('uncool_guy')
+        cool_guy_data = cool_guy_ref.get().to_dict()
+        uncool_guy_data = uncool_guy_ref.get().to_dict()
+
+        # Get poll deadline
+        deadline = self.get_poll_deadline(today)
+
+        # Get poll nominees
+        nominees = self.generate_nominees_text(cool_guy_data)
+
+        # Send polls
+        cool_guy_poll = await self.generate_guy_poll(
+            title='Cool Guy of the Week Poll',
+            color=color.PURPLE,
             fields=[
                 ('Previous Cool Guy:', cool_guy_data['previous_guy']['name'], True),
                 ('Deadline:', "Today @ " + deadline.strftime('%I:%M %p'), True),
                 ('\n**Nominees:**', nominees, False)
             ],
-            footer='React to cast a vote!'
+            doc_ref=cool_guy_ref,
+            data=cool_guy_data
         )
-        uncool_guy_embed = self.generate_embed(
+        uncool_guy_poll = await self.generate_guy_poll(
             title='Uncool Guy of the Week Poll',
-            description=f'{self.bot.guild.default_role}',
-            color=color['BROWN'],
+            color=color.BROWN,
             fields=[
                 ('Previous Uncool Guy:', uncool_guy_data['previous_guy']['name'], True),
                 ('Deadline:', "Today @ " + deadline.strftime('%I:%M %p'), True),
                 ('\n**Nominees:**', nominees, False)
             ],
-            footer='React to cast a vote!'
+            doc_ref=uncool_guy_ref,
+            data=uncool_guy_data
         )
-        cool_guy_message = await self.bot.general_channel.send(embed=cool_guy_embed)
-        uncool_guy_message = await self.bot.general_channel.send(embed=uncool_guy_embed)
-        
-        cool_guy_data['message_id'] = cool_guy_message.id
-        cool_guy_data['channel_id'] = cool_guy_message.channel.id
-        cool_guy_ref.update(cool_guy_data)
 
-        uncool_guy_data['message_id'] = uncool_guy_message.id
-        uncool_guy_data['channel_id'] = uncool_guy_message.channel.id
-        uncool_guy_ref.update(uncool_guy_data)
-
-        # Add bot reactions and pin message
-        default_emotes = get_default_emote_queue()
-        for nominee in cool_guy_data['nominees']:
-            emote_ref = firebase_handler.query_firestore(u'member_emotes', str(nominee['id']))
-            member_emote = emote_ref.get().to_dict()
-            if member_emote is None:
-                # Use defaults
-                emote = default_emotes.pop(0)
-            else:
-                emote = member_emote['emote']
-            await cool_guy_message.add_reaction(emote)
-            await uncool_guy_message.add_reaction(emote)
-        try:
-            await cool_guy_message.pin()
-            await uncool_guy_message.pin()
-        except:
-            pass
-
-        # Setup jobs
-        self.update_job = self.bot.scheduler.add_job(
-            self.update_vote, 
-            "interval", 
-            minutes=1,
-        )
+        # Setup jobs to finish polls
         self.complete_poll_job = self.bot.scheduler.add_job(
             self.complete_poll, 
             "date", 
@@ -191,152 +252,86 @@ class GuyOfWeek(Cog):
             args=[cool_guy_data, uncool_guy_data]
         )
 
-    async def update_vote(self):
-        """Update the vote count every minute"""
-        cool_guy_ref = firebase_handler.query_firestore(u'cool_guy', self.data_id)
-        cool_guy_data = cool_guy_ref.get().to_dict()
-        uncool_guy_ref = firebase_handler.query_firestore(u'uncool_guy', self.data_id)
-        uncool_guy_data = uncool_guy_ref.get().to_dict()
-
-        # Update cool guy vote counts and check if everyone already voted
-        cool_guy_votes = 0
-        cool_guy_message = await self.bot.get_channel(cool_guy_data['channel_id']).fetch_message(cool_guy_data['message_id'])
-        for reaction, nominee in zip(cool_guy_message.reactions, cool_guy_data['nominees']):
-            nominee['votes'] = reaction.count
-            cool_guy_votes += (reaction.count - 1)
-        cool_guy_ref.update(cool_guy_data)
-
-        if cool_guy_votes >= len(cool_guy_data['nominees']) - 1:
-            self.is_cool_poll_done = True
-
-        # Update uncool guy vote counts and check if everyone already voted
-        uncool_guy_votes = 0
-        uncool_guy_message = await self.bot.get_channel(uncool_guy_data['channel_id']).fetch_message(uncool_guy_data['message_id'])
-        for reaction, nominee in zip(uncool_guy_message.reactions, uncool_guy_data['nominees']):
-            nominee['votes'] = reaction.count
-            uncool_guy_votes += (reaction.count - 1)
-        uncool_guy_ref.update(uncool_guy_data)
-
-        if uncool_guy_votes >= len(uncool_guy_data['nominees']) - 1:
-            self.is_uncool_poll_done = True
-
-        # Check if everyone votes, end polls
-        if self.is_cool_poll_done and self.is_uncool_poll_done:
-            await self.complete_poll(cool_guy_data, uncool_guy_data)
-            self.complete_poll_job.pause()
-            self.complete_poll_job.remove()
-
     async def complete_poll(self, cool_guy_data, uncool_guy_data):
         """Find winner of poll and change their roles"""
 
-        # Stop vote updater job
-        self.update_job.pause()
-        self.update_job.remove()
-        self.is_cool_poll_done = False
-        self.is_uncool_poll_done = False
-
         # Get results
-        cool_guy_message = await self.bot.get_channel(cool_guy_data['channel_id']).fetch_message(cool_guy_data['message_id'])
-        cool_guy_results = max(cool_guy_message.reactions, key=lambda r: r.count)
-        cool_guy_idx = cool_guy_message.reactions.index(cool_guy_results)
-        new_cool_guy = self.bot.guild.get_member(cool_guy_data['nominees'][cool_guy_idx]['id'])
-
-        uncool_guy_message = await self.bot.get_channel(uncool_guy_data['channel_id']).fetch_message(uncool_guy_data['message_id'])
-        uncool_guy_results = max(uncool_guy_message.reactions, key=lambda r: r.count)
-        uncool_guy_idx = uncool_guy_message.reactions.index(uncool_guy_results)
-        new_uncool_guy = self.bot.guild.get_member(uncool_guy_data['nominees'][uncool_guy_idx]['id'])
+        results = await self.get_results(cool_guy_data, uncool_guy_data)
 
         # Create embeds and send results
         cool_guy_embed = self.generate_embed(
             title='Cool Guy Results',
-            description=f'{new_cool_guy.mention}',
-            color=color['PURPLE'],
-            fields=[('Winning Votes', cool_guy_results.count, False)]
+            description=f"{results['cool']['user'].mention}",
+            color=color.PURPLE,
+            fields=[('Winning Votes', results['cool']['votes'], False)]
         )
         uncool_guy_embed = self.generate_embed(
             title='Uncool Guy Results',
-            description=f'{new_uncool_guy.mention} sucks',
-            color=color['BROWN'],
-            fields=[('Winning Votes', uncool_guy_results.count, False)]
+            description=f"{results['uncool']['user'].mention} sucks",
+            color=color.BROWN,
+            fields=[('Winning Votes', results['uncool']['votes'], False)]
         )
-        await cool_guy_message.channel.send(embed=cool_guy_embed)
-        await uncool_guy_message.channel.send(embed=uncool_guy_embed)
+        await self.bot.general_channel.send(embed=cool_guy_embed)
+        await self.bot.general_channel.send(embed=uncool_guy_embed)
 
-        # Remove previous cool guy 'cool guy of the week' role
-        cool_guy_role = find(
-            lambda r: r.name == str(config['COOL_ROLE']),
-            self.bot.guild.roles
+        # Remove previous cool guy 'cool guy of the week' role and
+        # give winner 'cool guy of the week' role
+        await self.set_new_roles(
+            cool_guy_data['previous_guy']['id'],
+            uncool_guy_data['previous_guy']['id'],
+            results
         )
-        if cool_guy_data['previous_guy']['id'] is not None:
-            old_cool_guy = self.bot.guild.get_member(cool_guy_data['previous_guy']['id'])
-            try:
-                await old_cool_guy.remove_roles(cool_guy_role)
-            except Exception as e:
-                await cool_guy_message.channel.send(f'**Error:** {e}')
-
-        uncool_guy_role = find(
-            lambda r: r.name == str(config['UNCOOL_ROLE']),
-            self.bot.guild.roles
-        )
-        if uncool_guy_data['previous_guy']['id'] is not None:
-            old_uncool_guy = self.bot.guild.get_member(uncool_guy_data['previous_guy']['id'])
-            try:
-                await old_uncool_guy.remove_roles(uncool_guy_role)
-            except Exception as e:
-                await cool_guy_message.channel.send(f'**Error:** {e}')
-
-        # Give winner 'cool guy of the week' role
-        try:
-            await new_cool_guy.add_roles(cool_guy_role)
-        except Exception as e:
-            await cool_guy_message.channel.send(f'**Error:** {e}')
-        
-        try:
-            await new_uncool_guy.add_roles(uncool_guy_role)
-        except Exception as e:
-            await cool_guy_message.channel.send(f'**Error:** {e}')
         
         # Unpin and delete message
         try:
-            await cool_guy_message.unpin()
-            await uncool_guy_message.unpin()
-            await cool_guy_message.delete()
-            await uncool_guy_message.delete()
+            await results['cool']['message'].unpin()
+            await results['uncool']['message'].unpin()
+            await results['cool']['message'].delete()
+            await results['uncool']['message'].delete()
         except:
             pass
 
         next_run_time = self.poll_job.next_run_time.strftime('%Y-%m-%d %I:%M %p')
         logging.info(f'"GuyOfWeek.create_guy_of_week_poll" next run time: {next_run_time}')
 
-    @command(aliases=['end'])
-    @has_any_role('Developer', 'Dusty Boy')
+    @command()
+    @has_role('Developer')
+    async def start_poll(self, ctx):
+        """Start the guy of week polls"""
+        await self.send_guy_of_week_polls()
+
+    @command()
+    @has_any_role('Developer', 'Daddies')
     async def end_poll(self, ctx):
         """Force end the poll"""
         cool_guy_ref = firebase_handler.query_firestore(u'cool_guy', self.data_id)
-        cool_guy_data = cool_guy_ref.get().to_dict()
         uncool_guy_ref = firebase_handler.query_firestore(u'uncool_guy', self.data_id)
+        cool_guy_data = cool_guy_ref.get().to_dict()
         uncool_guy_data = uncool_guy_ref.get().to_dict()
         await self.complete_poll(cool_guy_data, uncool_guy_data)
         self.complete_poll_job.pause()
         self.complete_poll_job.remove()
 
     @command()
-    @has_any_role('Developer', 'Dusty Boy')
+    @has_any_role('Developer', 'Daddies')
     async def next_poll(self, ctx):
         """Show the next poll run time"""
         date = self.poll_job.next_run_time
         await ctx.send(f"The next poll will be send on {date.strftime('%A, %b %d')} at {date.strftime('%I:%M %p')}")
 
     @command(aliases=['set'])
-    @has_any_role('Developer', 'Dusty Boy')
+    @has_any_role('Developer', 'Daddies')
     async def set_poll_time(self, ctx, arg: str, value: int):
         """
-        Change when polls occur\n
-        Valid args: day, duration, hour, minute\n
-        Valid arg values:\n
-        \tday - 0, 1, 2, .., 6 (MON = 0, SUN = 6)\n
-        \tduration - seconds (Ex. 21600 = 6 hours)\n
-        \thour - 0, 1, 2, ..., 23 (Military hours)\n
+        Set when the poll happens
+
+        Parameters:
+        -----------
+        arg - string, either day, duration, hour, or minute
+        value - int, 
+        \tday - 0, 1, 2, .., 6 (MON = 0, SUN = 6)
+        \tduration - seconds (Ex. 21600 = 6 hours)
+        \tthour - 0, 1, 2, ..., 23 (Military hours)
         \tminute - 0, 1, 2, ..., 59
         """
         settings_ref = firebase_handler.query_firestore(u'poll_settings', 'guy_of_week')
@@ -375,6 +370,40 @@ class GuyOfWeek(Cog):
         )
         date = self.poll_job.next_run_time
         await ctx.send(f"Guy of the week polls will now be sent every {date.strftime('%A')} at {date.strftime('%I:%M %p')}")
+
+    @Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+        """Handle multiple reactions on the same message"""
+
+        # Get the message
+        message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
+        if not message.embeds or payload.member.bot:
+            return
+
+        # Remove previous reaction from message
+        if message.embeds[0].title == 'Cool Guy of the Week Poll':
+            cool_guy_ref = firebase_handler.query_firestore(u'cool_guy', self.data_id)
+            cool_guy_data = cool_guy_ref.get().to_dict()
+            if message.id != cool_guy_data['message_id']:
+                return
+            for reaction in message.reactions:
+                if (payload.member in await reaction.users().flatten()
+                    and reaction.emoji != payload.emoji.name):
+                    await message.remove_reaction(reaction.emoji, payload.member)
+        elif message.embeds[0].title == 'Uncool Guy of the Week Poll':
+            uncool_guy_ref = firebase_handler.query_firestore(u'uncool_guy', self.data_id)
+            uncool_guy_data = uncool_guy_ref.get().to_dict()
+            if message.id != uncool_guy_data['message_id']:
+                return
+            for reaction in message.reactions:
+                if (payload.member in await reaction.users().flatten()
+                    and reaction.emoji != payload.emoji.name):
+                    await message.remove_reaction(reaction.emoji, payload.member)
+        elif message.embeds[0].title == 'Question:':
+            for reaction in message.reactions:
+                if (payload.member in await reaction.users().flatten()
+                    and reaction.emoji != payload.emoji.name):
+                    await message.remove_reaction(reaction.emoji, payload.member)
 
 def setup(bot):
     """Add this cog"""

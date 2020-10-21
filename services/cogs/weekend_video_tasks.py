@@ -22,6 +22,7 @@ class WeekendVideoTasks(Cog):
         )
         next_run_time = self.friday_video_job.next_run_time.strftime('%Y-%m-%d %I:%M %p')
         logging.info(f'"WeekendVideoTasks.send_friday_video" next run time: {next_run_time}')
+
         self.saturday_video_job = self.bot.scheduler.add_job(
             self.send_saturday_video,
             CronTrigger(
@@ -34,6 +35,7 @@ class WeekendVideoTasks(Cog):
         )
         next_run_time = self.saturday_video_job.next_run_time.strftime('%Y-%m-%d %I:%M %p')
         logging.info(f'"WeekendVideoTasks.send_saturday_video" next run time: {next_run_time}')
+
         self.sunday_video_job = self.bot.scheduler.add_job(
             self.send_sunday_video,
             CronTrigger(
@@ -49,21 +51,22 @@ class WeekendVideoTasks(Cog):
 
     async def send_friday_video(self):
         """Send the friday videos"""
-        await self.bot.general_channel.send(config['FRIDAY_VIDEO_1'])
-        await self.bot.general_channel.send(config['FRIDAY_VIDEO_2'])
+        await self.bot.general_channel.send(config.FRIDAY_VIDEO_1)
+        await self.bot.general_channel.send(config.FRIDAY_VIDEO_2)
         next_run_time = self.friday_video_job.next_run_time.strftime('%Y-%m-%d %I:%M %p')
         logging.info(f'"WeekendVideoTasks.send_friday_video" next run time: {next_run_time}')
 
     async def send_saturday_video(self):
         """Send the saturday video"""
-        await self.bot.general_channel.send(config['SATURDAY_VIDEO'])
+        await self.bot.general_channel.send(config.SATURDAY_VIDEO_1)
+        await self.bot.general_channel.send(config.SATURDAT_VIDEO_2)
         next_run_time = self.saturday_video_job.next_run_time.strftime('%Y-%m-%d %I:%M %p')
         logging.info(f'"WeekendVideoTasks.send_saturday_video" next run time: {next_run_time}')
 
     async def send_sunday_video(self):
         """Send the sunday videos"""
-        await self.bot.general_channel.send(config['SUNDAY_VIDEO_1'])
-        await self.bot.general_channel.send(config['SUNDAY_VIDEO_2'])
+        await self.bot.general_channel.send(config.SUNDAY_VIDEO_1)
+        await self.bot.general_channel.send(config.SUNDAY_VIDEO_2)
         next_run_time = self.sunday_video_job.next_run_time.strftime('%Y-%m-%d %I:%M %p')
         logging.info(f'"WeekendVideoTasks.send_sunday_video" next run time: {next_run_time}')
 

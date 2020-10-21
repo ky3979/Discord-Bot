@@ -20,7 +20,7 @@ class Testing(Cog):
     async def test_firebase(self, ctx):
         """Test firebase calls"""
         me = find(
-            lambda m: m.id == 152950882315665410,
+            lambda m: m.id == int(config.DEV_ID),
             self.bot.guild.members
         )
         doc_ref = firebase_handler.query_firestore(u'members', str(me.id))
@@ -31,8 +31,7 @@ class Testing(Cog):
     @command(hidden=True)
     async def test_config(self, ctx):
         """Test firebase calls"""
-        await ctx.send(f"{config['DEV_ID']}")
-        await ctx.send(f"{config['COOL_ROLE']}")
+        await ctx.send(f"{config.DEV_ID}")
 
     @command(hidden=True)
     async def test_mention(self, ctx):
