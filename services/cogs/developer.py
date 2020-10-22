@@ -73,6 +73,12 @@ class Developer(Cog):
             await ctx.send(f'Could not add role for member. <{e}>')
         else:
             await ctx.send(f'Member now has role "{role}"')
+    
+    @command(hidden=True)
+    @has_role('Developer')
+    async def patch_notes(self, ctx):
+        await ctx.message.delete()
+        await self.bot.general_channel.send(f'Dusty Bot **{self.bot.VERSION}** has been deloyed!\n{self.bot.VERSION_NOTES}')
 
 def setup(bot):
     """Add this cog"""

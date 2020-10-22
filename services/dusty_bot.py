@@ -57,12 +57,6 @@ class DustyBot(Bot):
                 except Exception as e:
                     print(f'Failed to load extension <{filename[:-3]}>.', e)
 
-    @Bot.command()
-    @has_role('Developer')
-    async def patch_notes(self, ctx):
-        await ctx.message.delete()
-        await self.general_channel.send(f'Dusty Bot **{self.VERSION}** has been deloyed!\n{self.VERSION_NOTES}')
-
     async def on_ready(self):
         if not self.ready:
             self.ready = True
