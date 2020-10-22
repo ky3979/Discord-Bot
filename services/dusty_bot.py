@@ -3,11 +3,18 @@ import os
 import discord
 import aiohttp
 from services.config import config
-from discord.errors import Forbidden
-from discord.ext.commands import Bot, CommandNotFound, BadArgument, MissingRequiredArgument
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from services.extensions import firebase_handler
+from discord.errors import Forbidden
+from discord.ext.commands import (
+    Bot,
+    CommandNotFound,
+    BadArgument,
+    MissingRequiredArgument,
+    command,
+    has_role,
+)
 from services.schemas.member import (
     Member
 )
@@ -50,6 +57,12 @@ class DustyBot(Bot):
                 except Exception as e:
                     print(f'Failed to load extension <{filename[:-3]}>.', e)
 
+    @Bot.command()
+    @has_role('Developer')
+    async def patch_notes(self, ctx):
+        await ctx.message.delete()
+        await self.general_channel.send(f'Dusty Bot **{self.VERSION}** has been deloyed!\n{self.VERSION_NOTES}')
+
     async def on_ready(self):
         if not self.ready:
             self.ready = True
@@ -59,7 +72,6 @@ class DustyBot(Bot):
             self.scheduler.start()
             self.loadCogs()
             print(f'\nLogged in as ({self.user.name} : {self.user.id})\n')
-            await self.general_channel.send(f'Dusty Bot **{self.VERSION}** has been deloyed!\n{self.VERSION_NOTES}')
 
     async def on_member_join(self, member):
         doc_ref = firebase_handler.query_firestore(u'members', str(member.id))
@@ -109,5 +121,4 @@ class DustyBot(Bot):
         await self.session.close()
         self.scheduler.shutdown()
         print(f'\nLogged off as ({self.user.name} : {self.user.id})\n')
-        await self.general_channel.send(f'\nLogged off as ({self.user.name})')
         
