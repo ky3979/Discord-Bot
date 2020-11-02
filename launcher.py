@@ -3,16 +3,10 @@ import logging
 import json
 from services.dusty_bot import DustyBot
 
-VERSION = '0.0.6v'
+VERSION = '0.0.7v'
 VERSION_NOTES = f"""```
 {VERSION} (Latest):
-\t- Fixed patch notes sending bug
-0.0.5v:
-\t- Restructured config file
-\t- Fixed disconnect message bug
-\t- Code refactoring
-0.0.4v:
-\t- Added a simple poll command. Use '!help poll' to learn more!
+\t- Upgrade bot to newest version of DiscordPy API
 ```"""
 
 logging.basicConfig(level=logging.INFO)

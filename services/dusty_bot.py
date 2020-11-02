@@ -30,7 +30,8 @@ class DustyBot(Bot):
         super().__init__(
             command_prefix=PREFIX,
             description='Official Dusty server bot',
-            owner_id=config.DEV_ID
+            owner_id=config.DEV_ID,
+            intents=discord.Intents.all(),
         )
         self.token = config.BOT_TOKEN
         self.scheduler = AsyncIOScheduler()
