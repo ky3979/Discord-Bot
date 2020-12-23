@@ -3,9 +3,11 @@ import logging
 import json
 from services.dusty_bot import DustyBot
 
-VERSION = '0.0.7v'
+VERSION = '0.0.10v'
 VERSION_NOTES = f"""```
 {VERSION} (Latest):
+\t- Add apex legends map rotation tracker
+0.0.9v:
 \t- Upgrade bot to newest version of DiscordPy API
 ```"""
 
