@@ -7,3 +7,6 @@ class ValorantAuthSchema:
     access_token: str
     entitlements_token: str
     user_id: str
+    discord_id: str
+    username: str
+    password: str

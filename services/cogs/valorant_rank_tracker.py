@@ -3,6 +3,7 @@ import re
 import requests
 import discord
 import asyncio
+from cryptography.fernet import Fernet
 from aiohttp import ClientSession
 from discord import Embed, File
 from discord.ext.commands import command, Cog
@@ -72,12 +73,21 @@ class ValorantRankTracker(Cog):
             data = await r.json()
         user_id = data['sub']
 
+        # Hashing login credentials to store
+        key = Fernet.generate_key()
+        cipher_suite = Fernet(key)
+        username_hash = cipher_suite.encrypt(username.encode())
+        password_hash = cipher_suite.encrypt(password.encode())
+
         # Store data in firebase
         doc_ref = firebase_handler.query_firestore(u'valorant_auth', str(discord_id))
         data = ValorantAuthSchema(
             access_token,
             entitlements_token,
-            user_id
+            user_id,
+            discord_id,
+            username_hash,
+            password_hash
         )
         doc_ref.set(ValorantAuthSchema.Schema().dump(data))
 
@@ -102,8 +112,17 @@ class ValorantRankTracker(Cog):
         elo = (rank_num * 100) - 300 + current_rp
 
         if current_rp == -1:
-            await ctx.send("Your login has timed out. Please relog.")
-            return
+            key = Fernet.generate_key()
+            cipher_suite = Fernet(key)
+            username = cipher_suite.decrypt(data['username'])
+            password = cipher_suite.decrypt(data['password'])
+            self.authenticate(username, password, data['discord_id'])
+            await self.get_cloud_rank()
+            current_rp, rank_num = await self.update_comp_rank(data)
+            elo = (rank_num * 100) - 300 + current_rp
+            if current_rp == -1:
+                await ctx.send("Your login has timed out. Please relog.")
+                return
 
         # Get match progressions
         progression = await self.progression_text(data)
@@ -127,6 +146,23 @@ class ValorantRankTracker(Cog):
     async def update_comp_rank(self, data):
         """Get the updated rank"""
         try:
+            res = requests.get(
+                f'https://pd.na.a.pvp.net/mmr/v1/players/{data["user_id"]}/competitiveupdates?startIndex=0&endIndex=20',
+                headers={
+                    'Authorization': 'Bearer ' + data['access_token'],
+                    'X-Riot-Entitlements-JWT': data['entitlements_token']
+                }
+            )
+            if res.ok:
+                for game in res.json()['Matches']:
+                    if game['CompetitiveMovement'] != 'MOVEMENT_UNKNOWN':
+                        return game["TierProgressAfterUpdate"], game['TierAfterUpdate']
+                return -1, 3
+            key = Fernet.generate_key()
+            cipher_suite = Fernet(key)
+            username = cipher_suite.decrypt(data['username'])
+            password = cipher_suite.decrypt(data['password'])
+            self.authenticate(username, password, data['discord_id'])
             res = requests.get(
                 f'https://pd.na.a.pvp.net/mmr/v1/players/{data["user_id"]}/competitiveupdates?startIndex=0&endIndex=20',
                 headers={
