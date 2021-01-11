@@ -17,6 +17,9 @@ class ValorantRankTracker(Cog):
         self.bot = bot
         self.ranks = ''
 
+        key = Fernet.generate_key()
+        self.cipher_suite = Fernet(key)
+
     @command(aliases=['vallogin'])
     async def valorant_login(self, ctx, username, password):
         """
@@ -74,10 +77,8 @@ class ValorantRankTracker(Cog):
         user_id = data['sub']
 
         # Hashing login credentials to store
-        key = Fernet.generate_key()
-        cipher_suite = Fernet(key)
-        username_hash = cipher_suite.encrypt(username.encode())
-        password_hash = cipher_suite.encrypt(password.encode())
+        username_hash = self.cipher_suite.encrypt(username.encode())
+        password_hash = self.cipher_suite.encrypt(password.encode())
 
         # Store data in firebase
         doc_ref = firebase_handler.query_firestore(u'valorant_auth', str(discord_id))
@@ -112,17 +113,8 @@ class ValorantRankTracker(Cog):
         elo = (rank_num * 100) - 300 + current_rp
 
         if current_rp == -1:
-            key = Fernet.generate_key()
-            cipher_suite = Fernet(key)
-            username = cipher_suite.decrypt(data['username'])
-            password = cipher_suite.decrypt(data['password'])
-            self.authenticate(username, password, data['discord_id'])
-            await self.get_cloud_rank()
-            current_rp, rank_num = await self.update_comp_rank(data)
-            elo = (rank_num * 100) - 300 + current_rp
-            if current_rp == -1:
-                await ctx.send("Your login has timed out. Please relog.")
-                return
+            await ctx.send("Your login has timed out. Please relog.")
+            return
 
         # Get match progressions
         progression = await self.progression_text(data)
@@ -158,10 +150,10 @@ class ValorantRankTracker(Cog):
                     if game['CompetitiveMovement'] != 'MOVEMENT_UNKNOWN':
                         return game["TierProgressAfterUpdate"], game['TierAfterUpdate']
                 return -1, 3
-            key = Fernet.generate_key()
-            cipher_suite = Fernet(key)
-            username = cipher_suite.decrypt(data['username'])
-            password = cipher_suite.decrypt(data['password'])
+            username = self.cipher_suite.decrypt(data['username'])
+            password = self.cipher_suite.decrypt(data['password'])
+            if username is None or password is None:
+                return -1, 3
             self.authenticate(username, password, data['discord_id'])
             res = requests.get(
                 f'https://pd.na.a.pvp.net/mmr/v1/players/{data["user_id"]}/competitiveupdates?startIndex=0&endIndex=20',
