@@ -28,6 +28,7 @@ class Color:
     PURPLE: int = 0xd14fcd
     BROWN: int = 0x593018
     YELLOW: int = 0xe7c90b
+    RED: int = 0xff0000
 
 config = Config()
 color = Color()
