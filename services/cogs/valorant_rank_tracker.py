@@ -3,7 +3,6 @@ import re
 import requests
 import discord
 import asyncio
-from cryptography.fernet import Fernet
 from aiohttp import ClientSession
 from discord import Embed, File
 from discord.ext.commands import command, Cog
@@ -16,9 +15,6 @@ class ValorantRankTracker(Cog):
     def __init__(self, bot):
         self.bot = bot
         self.ranks = ''
-
-        key = Fernet.generate_key()
-        self.cipher_suite = Fernet(key)
 
     @command(aliases=['vallogin'])
     async def valorant_login(self, ctx, username, password):
@@ -76,19 +72,13 @@ class ValorantRankTracker(Cog):
             data = await r.json()
         user_id = data['sub']
 
-        # Hashing login credentials to store
-        username_hash = self.cipher_suite.encrypt(username.encode())
-        password_hash = self.cipher_suite.encrypt(password.encode())
-
         # Store data in firebase
         doc_ref = firebase_handler.query_firestore(u'valorant_auth', str(discord_id))
         data = ValorantAuthSchema(
             access_token,
             entitlements_token,
             user_id,
-            discord_id,
-            username_hash,
-            password_hash
+            discord_id
         )
         doc_ref.set(ValorantAuthSchema.Schema().dump(data))
 
@@ -138,23 +128,6 @@ class ValorantRankTracker(Cog):
     async def update_comp_rank(self, data):
         """Get the updated rank"""
         try:
-            res = requests.get(
-                f'https://pd.na.a.pvp.net/mmr/v1/players/{data["user_id"]}/competitiveupdates?startIndex=0&endIndex=20',
-                headers={
-                    'Authorization': 'Bearer ' + data['access_token'],
-                    'X-Riot-Entitlements-JWT': data['entitlements_token']
-                }
-            )
-            if res.ok:
-                for game in res.json()['Matches']:
-                    if game['CompetitiveMovement'] != 'MOVEMENT_UNKNOWN':
-                        return game["TierProgressAfterUpdate"], game['TierAfterUpdate']
-                return -1, 3
-            username = self.cipher_suite.decrypt(data['username'])
-            password = self.cipher_suite.decrypt(data['password'])
-            if username is None or password is None:
-                return -1, 3
-            self.authenticate(username, password, data['discord_id'])
             res = requests.get(
                 f'https://pd.na.a.pvp.net/mmr/v1/players/{data["user_id"]}/competitiveupdates?startIndex=0&endIndex=20',
                 headers={
