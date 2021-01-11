@@ -388,7 +388,7 @@ class GuyOfWeek(Cog):
                 return
             for reaction in message.reactions:
                 if (payload.member in await reaction.users().flatten()
-                    and reaction.emoji != payload.emoji.name):
+                    and (reaction.emoji != payload.emoji and reaction.emoji != payload.emoji.name)):
                     await message.remove_reaction(reaction.emoji, payload.member)
         elif message.embeds[0].title == 'Uncool Guy of the Week Poll':
             uncool_guy_ref = firebase_handler.query_firestore(u'uncool_guy', self.data_id)
@@ -397,7 +397,7 @@ class GuyOfWeek(Cog):
                 return
             for reaction in message.reactions:
                 if (payload.member in await reaction.users().flatten()
-                    and reaction.emoji != payload.emoji.name):
+                    and (reaction.emoji != payload.emoji and reaction.emoji != payload.emoji.name)):
                     await message.remove_reaction(reaction.emoji, payload.member)
         elif message.embeds[0].title == 'Question:':
             for reaction in message.reactions:

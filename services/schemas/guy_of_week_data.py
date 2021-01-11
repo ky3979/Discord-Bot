@@ -7,7 +7,7 @@ from marshmallow_dataclass import dataclass
 @dataclass
 class PreviousGuy:
     """The previous guy"""
-    name: str = field(default='')
+    name: str = field(default='None')
     id: str = field(default='')
 
 @dataclass
