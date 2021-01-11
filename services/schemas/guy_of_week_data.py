@@ -7,14 +7,14 @@ from marshmallow_dataclass import dataclass
 @dataclass
 class PreviousGuy:
     """The previous guy"""
-    name: str = field(default='None')
-    id: int = field(default=None)
+    name: str = field(default='')
+    id: str = field(default='')
 
 @dataclass
 class Nominee:
     """Guy of the week nominee"""
-    name: str = field(default='None')
-    id: int = field(default=None)
+    name: str = field(default='')
+    id: str = field(default='')
 
 @dataclass
 class PollData:
@@ -22,5 +22,5 @@ class PollData:
     previous_guy: PreviousGuy
     nominees: List[Nominee]
     created_on: str = field(default=datetime.now().strftime('%Y-%m-%d'))
-    message_id: int = field(default=None)
-    channel_id: int = field(default=None)
+    message_id: str = field(default='')
+    channel_id: str = field(default='')

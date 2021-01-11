@@ -59,7 +59,7 @@ class GuyOfWeek(Cog):
             self.bot.guild.roles
         )
         prev_cool_guy = next(
-            (PreviousGuy(member.display_name, member.id) for member \
+            (PreviousGuy(member.display_name, f'{member.id}') for member \
              in self.bot.guild.members \
              if role in member.roles),
              PreviousGuy()
@@ -68,7 +68,7 @@ class GuyOfWeek(Cog):
         # Get nominees
         nominees = [Nominee(
                         member.display_name,
-                        member.id
+                        f'{member.id}'
                     ) for member 
                       in self.bot.guild.members
                       if not member.top_role.name == 'Bots'
@@ -126,8 +126,8 @@ class GuyOfWeek(Cog):
             footer='React to cast a vote!'
         )
         message = await self.bot.general_channel.send(embed=embed)
-        data['message_id'] = message.id
-        data['channel_id'] = message.channel.id
+        data['message_id'] = f'{message.id}'
+        data['channel_id'] = f'{message.channel.id}'
         doc_ref.update(data)
 
         # Add reaction options and pin poll
@@ -150,15 +150,15 @@ class GuyOfWeek(Cog):
 
     async def get_results(self, cool_data, uncool_data):
         """Return the person with the most votes from each poll"""
-        cool_guy_message = await self.bot.get_channel(cool_data['channel_id']).fetch_message(cool_data['message_id'])
+        cool_guy_message = await self.bot.get_channel(int(cool_data['channel_id'])).fetch_message(cool_data['message_id'])
         cool_guy_results = max(cool_guy_message.reactions, key=lambda r: r.count)
         cool_guy_idx = cool_guy_message.reactions.index(cool_guy_results)
-        new_cool_guy = self.bot.guild.get_member(cool_data['nominees'][cool_guy_idx]['id'])
+        new_cool_guy = self.bot.guild.get_member(int(cool_data['nominees'][cool_guy_idx]['id']))
 
-        uncool_guy_message = await self.bot.get_channel(uncool_data['channel_id']).fetch_message(uncool_data['message_id'])
+        uncool_guy_message = await self.bot.get_channel(int(uncool_data['channel_id'])).fetch_message(uncool_data['message_id'])
         uncool_guy_results = max(uncool_guy_message.reactions, key=lambda r: r.count)
         uncool_guy_idx = uncool_guy_message.reactions.index(uncool_guy_results)
-        new_uncool_guy = self.bot.guild.get_member(uncool_data['nominees'][uncool_guy_idx]['id'])
+        new_uncool_guy = self.bot.guild.get_member(int(uncool_data['nominees'][uncool_guy_idx]['id']))
 
         return {
             'cool': {
@@ -277,8 +277,8 @@ class GuyOfWeek(Cog):
         # Remove previous cool guy 'cool guy of the week' role and
         # give winner 'cool guy of the week' role
         await self.set_new_roles(
-            cool_guy_data['previous_guy']['id'],
-            uncool_guy_data['previous_guy']['id'],
+            int(cool_guy_data['previous_guy']['id']),
+            int(uncool_guy_data['previous_guy']['id']),
             results
         )
         
@@ -384,7 +384,7 @@ class GuyOfWeek(Cog):
         if message.embeds[0].title == 'Cool Guy of the Week Poll':
             cool_guy_ref = firebase_handler.query_firestore(u'cool_guy', self.data_id)
             cool_guy_data = cool_guy_ref.get().to_dict()
-            if message.id != cool_guy_data['message_id']:
+            if message.id != int(cool_guy_data['message_id']):
                 return
             for reaction in message.reactions:
                 if (payload.member in await reaction.users().flatten()
@@ -393,7 +393,7 @@ class GuyOfWeek(Cog):
         elif message.embeds[0].title == 'Uncool Guy of the Week Poll':
             uncool_guy_ref = firebase_handler.query_firestore(u'uncool_guy', self.data_id)
             uncool_guy_data = uncool_guy_ref.get().to_dict()
-            if message.id != uncool_guy_data['message_id']:
+            if message.id != int(uncool_guy_data['message_id']):
                 return
             for reaction in message.reactions:
                 if (payload.member in await reaction.users().flatten()
