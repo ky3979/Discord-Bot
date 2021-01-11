@@ -155,14 +155,17 @@ class ValorantRankTracker(Cog):
                 }
             )
             if res.ok:
-                for i, game in enumerate(res.json()['Matches']):
-                    if i == 5:
+                counter = 0
+                for game in res.json()['Matches']:
+                    if counter == 5:
                         break
-                    progress_diff = game['TierProgressAfterUpdate'] - game['TierProgressBeforeUpdate']
-                    comp_movement = game['CompetitiveMovement'].replace('_', ' ')
-                    if progress_diff > 0:
-                        progress_diff = f'+{progress_diff}'
-                    progression += f'{progress_diff} ({comp_movement})\n'
+                    if game['CompetitiveMovement'] != 'MOVEMENT_UNKNOWN':
+                        progress_diff = game['TierProgressAfterUpdate'] - game['TierProgressBeforeUpdate']
+                        comp_movement = game['CompetitiveMovement'].replace('_', ' ')
+                        if progress_diff > 0:
+                            progress_diff = f'+{progress_diff}'
+                        progression += f'{progress_diff} ({comp_movement})\n'
+                        counter += 1
                 progression += '```'
                 return progression
             progression += 'No Data Available```'
