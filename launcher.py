@@ -3,12 +3,12 @@ import logging
 import json
 from services.dusty_bot import DustyBot
 
-VERSION = '0.0.10v'
+VERSION = '0.0.11v'
 VERSION_NOTES = f"""```
 {VERSION} (Latest):
+\t- Add valorant rank tracker (Need to authenticate with !vallogin then do !valrank)
+0.0.10v:
 \t- Add apex legends map rotation tracker
-0.0.9v:
-\t- Upgrade bot to newest version of DiscordPy API
 ```"""
 
 logging.basicConfig(level=logging.INFO)
