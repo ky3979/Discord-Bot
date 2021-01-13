@@ -104,22 +104,31 @@ class ValorantRankTracker(Cog):
         elo = (rank_num * 100) - 300 + current_rp
 
         if current_rp == -1:
+            progression = '```UNKNOWN```'
+            embed = Embed(
+                title='UNRANKED',
+                description=f'```HTTP\nUNKNOWN```',
+                color=color.RED
+            )
+            embed.add_field(name='Progression', value=progression, inline=True)
+            await ctx.send(embed=embed) 
+        elif current_rp == -2:
             await ctx.send("Your login has timed out. Please relog.")
             return
-
-        # Get match progressions
-        progression = await self.progression_text(data)
-
-        # Send embed message
-        img_file = File(f'assets/valorant/TX_CompetitiveTier_Large_{rank_num}.png', filename='rank.png')
-        embed = Embed(
-            title=self.ranks[f'{rank_num}'].upper(),
-            description=f'```HTTP\n{current_rp} RP | {elo} ELO```',
-            color=color.RED
-        )
-        embed.set_thumbnail(url='attachment://rank.png')
-        embed.add_field(name='Progression', value=progression, inline=True)
-        await ctx.send(file=img_file, embed=embed) 
+        elif current_rp == -3:
+            await ctx.send("Something wrong happened while getting your rank.")
+            return
+        else:
+            progression = await self.progression_text(data)
+            img_file = File(f'assets/valorant/TX_CompetitiveTier_Large_{rank_num}.png', filename='rank.png')
+            embed = Embed(
+                title=self.ranks[f'{rank_num}'].upper(),
+                description=f'```HTTP\n{current_rp} RP | {elo} ELO```',
+                color=color.RED
+            )
+            embed.set_thumbnail(url='attachment://rank.png')
+            embed.add_field(name='Progression', value=progression, inline=True)
+            await ctx.send(file=img_file, embed=embed) 
         
     async def get_cloud_rank(self):
         res = requests.get('https://502.wtf/ValorrankInfo.json')
@@ -141,9 +150,9 @@ class ValorantRankTracker(Cog):
                     if game['CompetitiveMovement'] != 'MOVEMENT_UNKNOWN':
                         return game["TierProgressAfterUpdate"], game['TierAfterUpdate']
                 return -1, 3
-            return -1, 3
+            return -2, 0
         except Exception:
-            return -1, 3
+            return -3, 0
 
     async def progression_text(self, data):
         """Get the tier progression history"""
