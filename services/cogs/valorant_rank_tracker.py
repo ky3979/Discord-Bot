@@ -104,7 +104,7 @@ class ValorantRankTracker(Cog):
         elo = (rank_num * 100) - 300 + current_rp
 
         if current_rp == -1:
-            progression = '```UNKNOWN```'
+            progression = await self.progression_text(data)
             embed = Embed(
                 title='UNRANKED',
                 description=f'```HTTP\nUNKNOWN```',
@@ -147,8 +147,8 @@ class ValorantRankTracker(Cog):
             )
             if res.ok:
                 for game in res.json()['Matches']:
-                    if game['CompetitiveMovement'] != 'MOVEMENT_UNKNOWN':
-                        return game["TierProgressAfterUpdate"], game['TierAfterUpdate']
+                    if game['TierAfterUpdate'] != 0:
+                        return game["RankedRatingAfterUpdate"], game['TierAfterUpdate']
                 return -1, 3
             return -2, 0
         except Exception:
@@ -170,14 +170,14 @@ class ValorantRankTracker(Cog):
                 for game in res.json()['Matches']:
                     if counter == 5:
                         break
-                    if game['CompetitiveMovement'] != 'MOVEMENT_UNKNOWN':
+                    if game['TierAfterUpdate'] != 0:
                         comp_movement = game['CompetitiveMovement'].replace('_', ' ')
                         if game['CompetitiveMovement'] == 'PROMOTED':
-                            progress_diff = (game['TierProgressAfterUpdate'] + 100) -game['TierProgressBeforeUpdate']
+                            progress_diff = (game['RankedRatingAfterUpdate'] + 100) -game['RankedRatingBeforeUpdate']
                         elif game['CompetitiveMovement'] == 'DEMOTED':
-                            progress_diff = (game['TierProgressAfterUpdate'] - 100) - game['TierProgressBeforeUpdate']
+                            progress_diff = (game['RankedRatingAfterUpdate'] - 100) - game['RankedRatingBeforeUpdate']
                         else:
-                            progress_diff = game['TierProgressAfterUpdate'] - game['TierProgressBeforeUpdate']
+                            progress_diff = game['RankedRatingAfterUpdate'] - game['RankedRatingBeforeUpdate']
                         if progress_diff > 0:
                             progress_diff = f'+{progress_diff}'
                         progression += f'{progress_diff} ({comp_movement})\n'
