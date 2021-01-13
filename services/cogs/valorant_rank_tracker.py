@@ -55,6 +55,7 @@ class ValorantRankTracker(Cog):
         # Get access token
         async with session.put('https://auth.riotgames.com/api/v1/authorization', json=data) as r:
             data = await r.json()
+        print(data)
         pattern = re.compile('access_token=((?:[a-zA-Z]|\d|\.|-|_)*).*id_token=((?:[a-zA-Z]|\d|\.|-|_)*).*expires_in=(\d*)')
         data = pattern.findall(data['response']['parameters']['uri'])[0]
         access_token = data[0]
