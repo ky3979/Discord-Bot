@@ -182,6 +182,7 @@ class ValorantRankTracker(Cog):
                         if progress_diff > 0:
                             progress_diff = f'+{progress_diff}'
                         counter += 1
+                        progression += progress_diff
                 progression += '```'
                 return progression
             progression += 'No Data Available```'
