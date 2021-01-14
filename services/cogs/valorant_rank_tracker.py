@@ -171,16 +171,16 @@ class ValorantRankTracker(Cog):
                     if counter == 5:
                         break
                     if game['TierAfterUpdate'] != 0:
-                        comp_movement = game['CompetitiveMovement'].replace('_', ' ')
-                        if game['CompetitiveMovement'] == 'PROMOTED':
+                        if game['TierAfterUpdate'] > game['TierBeforeUpdate']:
+                            # Promoted
                             progress_diff = (game['RankedRatingAfterUpdate'] + 100) -game['RankedRatingBeforeUpdate']
-                        elif game['CompetitiveMovement'] == 'DEMOTED':
+                        elif game['TierAfterUpdate'] < game['TierBeforeUpdate']:
+                            # Demoted
                             progress_diff = (game['RankedRatingAfterUpdate'] - 100) - game['RankedRatingBeforeUpdate']
                         else:
                             progress_diff = game['RankedRatingAfterUpdate'] - game['RankedRatingBeforeUpdate']
                         if progress_diff > 0:
                             progress_diff = f'+{progress_diff}'
-                        progression += f'{progress_diff} ({comp_movement})\n'
                         counter += 1
                 progression += '```'
                 return progression
