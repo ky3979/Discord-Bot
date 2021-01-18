@@ -27,8 +27,10 @@ class ApexLegends(Cog):
 
         if map_name == 'Olympus':
             embed.set_image(url='https://sdcore.dev/cdn/ApexStats/Maps/Olympus.png')
-        else:
+        elif map_name == 'World\'s Edge':
             embed.set_image(url='https://sdcore.dev/cdn/ApexStats/Maps/WorldsEdge.png')
+        elif map_name == 'King\'s Canyon':
+            embed.set_image(url='https://sdcore.dev/cdn/ApexStats/Maps/KingsCanyon.png')
 
         await ctx.send(embed=embed)
 
